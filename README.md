@@ -26,12 +26,20 @@ O sistema varre bases de dados reais (utilizando o *German Credit Risk Data* com
        └── Risco > 75%  ─────────► 🔴 [Camada 3: Gemini Pro / Flash Advanced]
                                      Auditoria Forense Profunda (Chain-of-Thought)
 ```
+## 🧠 Prevenção de Data Leakage e Auditoria "Cega"
+#### Um dos grandes diferenciais desta arquitetura é a simulação estrita do mundo real. Para garantir que os modelos não "colem" o resultado da base de dados, o sistema implementa a prevenção de Data Leakage (Vazamento de Dados):
+
+1. Fase de Treinamento: O modelo XGBoost é treinado com a base completa, aprendendo os padrões estatísticos que levam à classe bad (fraude/inadimplência).
+
+2. Fase de Inferência (Pipeline Dinâmico): Ao simular a entrada de novos clientes no funil, a variável alvo (class) é extirpada em tempo de execução.
+
+3. Chain-of-Thought Real: Com isso, o LLM da Google recebe apenas metadados brutos e logs. Ele é forçado a cruzar variáveis (ex: idade, histórico de pagamentos, score) para construir uma justificativa forense autêntica, sem depender de "gabaritos" prévios da base de dados.
 ## 🛠️ Stack Tecnológico 
 Linguagem: Python 3.10+
 
 Machine Learning (Estruturado): XGBoost, Scikit-Learn, Pandas
 
-Inteligência Artificial Generativa: Google GenAI SDK (Família Gemini 1.5/2.5)
+Inteligência Artificial Generativa: Google GenAI SDK (Família Gemini 2.5)
 
 Gerenciamento de Ambiente: python-dotenv
 
@@ -65,7 +73,7 @@ python main.py
 
 O sistema irá treinar o modelo na base real, pescar automaticamente clientes de diferentes faixas de risco (Baixo, Moderado e Crítico) e executar o funil híbrido, mostrando as decisões de IA no terminal.
 
-##💡 Mapa completo das limitações que vivenciadas
+## 💡 Mapa completo das limitações vivenciadas
 
 ### 1. Limite de Requisições por Minuto (RPM) - Erro 429
 O que vivenciamos: Quando colocamos o projeto para testar os 3 cenários em um loop (for cliente in lista_de_testes:), o Python enviou as requisições para a Google em questão de milissegundos. A API bloqueou o acesso imediatamente com o aviso RESOURCE_EXHAUSTED.
@@ -94,3 +102,7 @@ O que vivenciamos: No nosso teste final com a base real (CSV), o código estava 
 A Regra do Free Tier: Usuários gratuitos não têm SLA (Acordo de Nível de Serviço) nem prioridade de roteamento. Se houver um pico global de uso nos servidores do Google, as requisições gratuitas são as primeiras a serem enfileiradas ou derrubadas.
 
 Como resolvemos: A solução em nível de arquitetura para isso foi discutida no final: Podemos implementar um bloco try/except com lógica de Retry (tentar novamente após alguns segundos) e Exponential Backoff (aumentar o tempo de espera a cada tentativa).
+## 👨‍💻 Autor
+Tiago Rodrigues Plum Ferreira
+Engenheiro de Computação Apaixonado por Data Science,Machine Learning, Visão Computacional e Generative AI.
+Conecte-se comigo no LinkedIn para trocarmos ideias sobre arquitetura de software e inteligência artificial!
