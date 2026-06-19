@@ -26,14 +26,27 @@ O sistema varre bases de dados reais (utilizando o *German Credit Risk Data* com
        └── Risco > 75%  ─────────► 🔴 [Camada 3: Gemini Pro / Flash Advanced]
                                      Auditoria Forense Profunda (Chain-of-Thought)
 ```
-## 🧠 Prevenção de Data Leakage e Auditoria "Cega"
-#### Um dos grandes diferenciais desta arquitetura é a simulação estrita do mundo real. Para garantir que os modelos não "colem" o resultado da base de dados, o sistema implementa a prevenção de Data Leakage (Vazamento de Dados):
+## 🛠️ Desafios de Engenharia e Soluções Aplicadas
 
-1. Fase de Treinamento: O modelo XGBoost é treinado com a base completa, aprendendo os padrões estatísticos que levam à classe bad (fraude/inadimplência).
+Durante o desenvolvimento deste pipeline, enfrentamos e resolvemos gargalos reais de infraestrutura de IA:
 
-2. Fase de Inferência (Pipeline Dinâmico): Ao simular a entrada de novos clientes no funil, a variável alvo (class) é extirpada em tempo de execução.
+### 1. Limites de Taxa e Quedas de Servidor (Erros 429 e 503)
+* **Problema:** O processamento em lote (looping) disparou o limite de RPM (Requisições Por Minuto) da camada gratuita da API do Google, gerando os erros `429 RESOURCE_EXHAUSTED` e `503 UNAVAILABLE`.
+* **Solução:** Implementação de uma arquitetura resiliente de rede com blocos `try/except`, aplicando *Rate Limiting* (pausas de 5 segundos) e *Exponential Backoff* (espera de 15 segundos em caso de falha antes de realizar o *retry*).
 
-3. Chain-of-Thought Real: Com isso, o LLM da Google recebe apenas metadados brutos e logs. Ele é forçado a cruzar variáveis (ex: idade, histórico de pagamentos, score) para construir uma justificativa forense autêntica, sem depender de "gabaritos" prévios da base de dados.
+### 2. Modelos Obsoletos ou Sem Cota (Erro 404 e Quota 0)
+* **Problema:** O uso inicial da família `Gemini 1.5` ou versões `Pro` no Free Tier resultou em falta de acesso temporário e erros de rota.
+* **Solução:** Centralização da parametrização dos modelos na classe `__init__`, permitindo a migração rápida e global do sistema para o estável modelo `gemini-2.5-flash`, garantindo alta disponibilidade e contornando tetos operacionais restritivos.
+
+### 3. Conflito de Versões entre SHAP e XGBoost (ValueError)
+* **Problema:** As versões recentes do XGBoost (>=2.1.0) alteraram a formatação interna do `base_score`, causando falha fatal (crash) no `TreeExplainer` do SHAP.
+* **Solução:** Realizado o *downgrade* do XGBoost para a versão de estabilidade garantida `2.0.3` no `requirements.txt`, assegurando total compatibilidade da extração matemática.
+
+### 4. Falhas de Extração de JSON (Expecting value: line 1)
+* **Problema:** Mesmo utilizando `response_schema`, o LLM ocasionalmente inseria lixo em texto ou marcações markdown (```` ```json ````) antes do código, quebrando a função `json.loads()` do Python.
+* **Solução:** Construído um **Extrator Robusto de JSON** na Camada 3 (`clean_json = json_audit[inicio:fim+1]`), somado a um mecanismo de segurança (Fallback) que redireciona automaticamente o cliente para "Revisão Manual" caso a IA sofra alucinações na formatação, impedindo que o servidor da aplicação caia.
+
+---
 ## 🛠️ Stack Tecnológico 
 Linguagem: Python 3.10+
 
