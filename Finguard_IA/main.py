@@ -33,18 +33,31 @@ def run_finguard_pipeline(client_data: dict, text_history: str, ml_filter: Class
         # Recebemos a saída estruturada do LLM
         json_audit = gemini_pipeline.audit_with_pro(verdict, shap_explanation)
         
-        # PREVENÇÃO: Limpamos os blocos markdown caso a IA os coloque (```json ... ```)
-        clean_json = json_audit.replace("```json", "").replace("```", "").strip()
-        
-        # Transformamos o texto num dicionário Python
-        audit_dict = json_parser.loads(clean_json)
-        
-        print("\n🚨 [Auditoria Forense] Relatório Estruturado (JSON):")
-        print(f"🧠 Raciocínio Forense:\n   {audit_dict['analise_forense']}")
-        print(f"📊 Confiança da IA: {audit_dict['score_confianca']}%")
-        print(f"🛑 Decisão da IA: {audit_dict['decisao_final']}")
-        
-        return audit_dict['decisao_final']
+        try:
+            # 🛡️ PROTEÇÃO DE NÍVEL SÉNIOR: Extrator Robusto de JSON
+            # Mesmo que a IA escreva texto antes ou depois, procuramos exatamente o { e o }
+            inicio = json_audit.find('{')
+            fim = json_audit.rfind('}')
+            
+            if inicio != -1 and fim != -1:
+                clean_json = json_audit[inicio:fim+1] # Corta cirurgicamente o JSON
+                audit_dict = json_parser.loads(clean_json)
+                
+                print("\n🚨 [Auditoria Forense] Relatório Estruturado (JSON):")
+                print(f"🧠 Raciocínio Forense:\n   {audit_dict['analise_forense']}")
+                print(f"📊 Confiança da IA: {audit_dict['score_confianca']}%")
+                print(f"🛑 Decisão da IA: {audit_dict['decisao_final']}")
+                
+                return audit_dict['decisao_final']
+            else:
+                raise ValueError("A IA não gerou chaves JSON na resposta.")
+                
+        except Exception as e:
+            # FALLBACK DE SEGURANÇA: Se a IA falhar ou enviar resposta vazia, o sistema não quebra!
+            print(f"\n⚠️ Alerta: Falha na extração estruturada da IA. Erro: {e}")
+            print(f"Output Bruto da IA: {json_audit}")
+            print("🛑 Aplicando Fallback: Encaminhando para Mesa de Crédito Humana.")
+            return "ENCAMINHAR_MESA_DE_CREDITO"
 
 def extract_test_cases_from_csv(csv_path: str, ml_filter: ClassicalMLFilter):
     """Varre a base real e pesca automaticamente 3 cenários distintos para testar"""
